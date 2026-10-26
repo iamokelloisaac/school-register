@@ -1,0 +1,28 @@
+# School Register — Docker build context exclusions.
+#
+# Anything matched here is not sent to the Docker daemon. The build
+# only needs `pyproject.toml`, `app/`, `migrations/`, and `scripts/`.
+# Everything else is dead weight.
+
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+.idea
+.vscode
+tests
+.env
+.env.*
+!.env.example
+README.md
+Makefile
+docker-compose.yml
+Dockerfile
+.dockerignore
