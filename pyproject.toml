@@ -1,0 +1,214 @@
+# =============================================================================
+# School Register — pyproject.toml
+# =============================================================================
+#
+# Single source of truth for:
+#   - Project metadata (name, version, description)
+#   - Runtime dependencies
+#   - Dev dependencies (extras)
+#   - Tool configuration (pytest, ruff)
+#   - Package discovery (setuptools)
+#
+# Nothing here is optional. Every section has a purpose; the comments
+# explain the non-obvious choices.
+#
+# Reference: https://packaging.python.org/en/latest/specifications/pyproject-toml/
+
+# =============================================================================
+# Build system
+# =============================================================================
+#
+# The build backend is setuptools. `build-system` is required by the
+# PEP 517 spec — pip reads this section to know how to build the
+# project before it installs it. The `requires` list is what pip
+# installs into an isolated build environment; it is NOT the runtime
+# dependency list (that's `[project].dependencies` below).
+#
+# `setuptools>=68` is a recent-enough version to support the
+# `[tool.setuptools.packages.find]` configuration and PEP 621
+# metadata. The bound is loose on purpose — we don't need the latest.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# =============================================================================
+# Project metadata
+# =============================================================================
+
+[project]
+name = "school-register"
+version = "0.1.0"
+description = "A learning-grade school register API: FastAPI + raw PostgreSQL + opaque sessions."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+# Authors and keywords are optional but cheap, and they make the
+# package metadata more useful if this ever gets installed elsewhere.
+authors = [
+    { name = "Anonymous" },
+]
+keywords = ["fastapi", "postgresql", "psycopg", "school", "register", "learning"]
+
+# Classifiers are the old way of describing a package on PyPI. We're
+# not publishing, but tools like `pip show` display them, and they're
+# free to declare. Kept minimal on purpose.
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
+    "Topic :: Education",
+]
+
+# -----------------------------------------------------------------------------
+# Runtime dependencies
+# -----------------------------------------------------------------------------
+#
+# These are installed by `pip install .` — the runtime image, the
+# production container, and anyone who installs the package. They
+# should be the minimum required to run the app; nothing that's only
+# needed in development belongs here.
+#
+# Extras matter. `psycopg[binary,pool]` is not the same as `psycopg`:
+#   - `binary` pulls the pre-built wheel with libpq bundled, so no
+#     system libpq is needed.
+#   - `pool` pulls in `psycopg_pool`, which `app/db/pool.py` imports.
+#
+# `pydantic[email]` pulls in `email-validator`, which `EmailStr` needs.
+# Without it, importing a schema that uses `EmailStr` fails at import
+# time (not at first use). This bit us once already in Docker.
+
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "psycopg[binary,pool]>=3.2",
+    "pydantic[email]>=2.9",
+    "pydantic-settings>=2.6",
+    "argon2-cffi>=23.1",
+]
+
+# -----------------------------------------------------------------------------
+# Dev dependencies (extras)
+# -----------------------------------------------------------------------------
+#
+# Installed with `pip install -e ".[dev]"`. These are test runners,
+# linters, and test-only HTTP clients. Nothing in the runtime path
+# imports any of them.
+#
+# The `[project.optional-dependencies]` table creates a named extra
+# ("dev") that can be requested with the bracket syntax. `pip install
+# -e ".[dev]"` means "install the package editable, plus the dev
+# extra." `pip install .` (no brackets) installs runtime only.
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+    "ruff>=0.7",
+]
+
+# =============================================================================
+# Package discovery
+# =============================================================================
+#
+# This is the fix for the "Multiple top-level packages discovered in a
+# flat-layout" error. Without it, setuptools scans the project root for
+# anything that looks like a Python package and finds `app/`,
+# `migrations/`, and `scripts/` — all three have `__init__.py` or
+# contain `.py` files — and refuses to guess which is the real package.
+#
+# `include = ["app*"]` says "only `app` and its subpackages." The
+# `exclude` list is redundant given the include, but it documents the
+# intent: `tests/`, `migrations/`, and `scripts/` are not installable
+# packages, they're project-level directories.
+#
+# The wildcard (`app*`) picks up subpackages (`app.core`, `app.db`,
+# `app.api`, etc.) automatically. Adding a new subpackage doesn't
+# require touching this file.
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["tests*", "migrations*", "scripts*"]
+
+# =============================================================================
+# Tool configuration — pytest
+# =============================================================================
+#
+# `asyncio_mode = "auto"` tells pytest-asyncio to treat every
+# `async def test_*` as an async test without requiring an explicit
+# `@pytest.mark.asyncio` decorator. Less boilerplate, same behavior.
+#
+# `testpaths = ["tests"]` restricts discovery to the `tests/` directory
+# when you run `pytest` with no arguments. Otherwise pytest would walk
+# the entire project and try to collect `scripts/seed.py` and every
+# other importable file it finds.
+#
+# `python_files = ["test_*.py"]` is the default but declared explicitly
+# so the convention is visible. Files named `*_test.py` would not be
+# picked up; only `test_*.py` files are treated as test modules.
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# =============================================================================
+# Tool configuration — ruff
+# =============================================================================
+#
+# Ruff replaces flake8, isort, pyupgrade, and black for linting and
+# formatting. One tool, one config section, fast enough to run on
+# save.
+#
+# `line-length = 100` is a compromise: the PEP 8 default of 79 is
+# cramped for modern code, and the black default of 88 is fine but
+# not required. 100 is what most Python teams converge on.
+#
+# `target-version = "py311"` tells ruff to only apply rules and
+# rewrites valid on Python 3.11+. This matters for `pyupgrade`-style
+# rules that would otherwise suggest syntax newer or older than what
+# we actually target.
+#
+# The `select` list is deliberately minimal. Each code family:
+#   - E  pycodestyle errors
+#   - F  pyflakes (unused imports, undefined names)
+#   - I  isort (import ordering)
+#   - UP pyupgrade (modernize syntax)
+#   - B  flake8-bugbear (common bug patterns)
+#
+# We don't enable the full rule set. Adding rules is easy; removing
+# them once they've flagged hundreds of places is annoying. Start
+# minimal, add selectively.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["app", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    # E501 is "line too long". The formatter (ruff format) handles
+    # line length automatically; the linter flagging it too is noise.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files commonly need imports inside functions (fixtures that
+# set up environment before importing app modules). Allow E402
+# ("module level import not at top of file") there.
+"tests/**/*.py" = ["E402"]
+# The migration runner and reset script also need deferred imports
+# and dynamic access. Same allowance.
+"scripts/**/*.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
