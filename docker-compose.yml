@@ -1,0 +1,59 @@
+# School Register — local development stack.
+#
+# `docker compose up -d postgres`      just the database
+# `docker compose up -d`               database + app
+#
+# The app service is optional for development — running uvicorn on the
+# host gives faster reloads and easier debugging. But having it here
+# means `docker compose up` brings up the whole stack for anyone who
+# wants it, or for a demo.
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: school-register-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: school_register
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d school_register"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: school-register-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Inside the container, the database host is the service name
+      # ("postgres"), not "localhost". Docker's internal DNS resolves
+      # sibling services by name. Using localhost here would fail
+      # because the app container's loopback is not the DB container.
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/school_register
+      ENV: dev
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    # Bind mounts for live reload during development. Remove these (and
+    # the --reload flag) for a production container — bind mounts are a
+    # dev convenience, not a deployment pattern.
+    volumes:
+      - ./app:/app/app:ro
+      - ./migrations:/app/migrations:ro
+      - ./scripts:/app/scripts:ro
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pgdata:
