@@ -62,16 +62,16 @@ from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Annotated, Any
 
-from fastapi import Cookie, Depends, Header, status
+from fastapi import Cookie, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from psycopg import AsyncConnection
 
+from app.core import security
+from app.core.config import settings
 from app.core.errors import Forbidden, Unauthorized
 from app.db.pool import get_pool
 from app.db.queries import sessions as sessions_q
 from app.db.queries import users as users_q
-from app.core import security
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
