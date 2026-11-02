@@ -25,11 +25,27 @@ RUN python -m venv "$VIRTUAL_ENV"
 
 WORKDIR /app
 
-# Copy just the project metadata first, then install. This lets
-# Docker's layer cache do its job: as long as `pyproject.toml` doesn't
-# change, the (slow) pip install runs on a cached layer even when the
-# application source changes.
-COPY pyproject.toml ./
+# Copy the project metadata AND the package source before installing.
+#
+# Why source is copied here, not just pyproject.toml:
+#   `pip install .` runs setuptools, which reads
+#   [tool.setuptools.packages.find] include = ["app*"].
+#   If `app/` is absent, setuptools finds no package, the install
+#   "succeeds" but produces an empty wheel, and the runtime stage
+#   fails at `uvicorn app.main:app` with ModuleNotFoundError.
+#
+# README.md is required because pyproject.toml declares
+# `readme = "README.md"` — setuptools errors out if it's missing.
+#
+# Trade-off: source changes invalidate the pip layer. For this
+# project that's acceptable — the build is fast, and correctness
+# beats a marginal cache win. (If rebuild time ever becomes a
+# problem, split dependencies into requirements.txt and install
+# that in a cached layer first, then `pip install --no-deps .`.)
+COPY pyproject.toml README.md ./
+COPY app ./app
+COPY migrations ./migrations
+COPY scripts ./scripts
 
 # Install runtime dependencies only — not the `[dev]` extras. Tests
 # and linters belong in a CI image, not the production image.

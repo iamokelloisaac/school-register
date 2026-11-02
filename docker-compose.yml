@@ -36,6 +36,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Run as the host user so bind-mounted source is readable on
+    # Linux. The container's built-in `appuser` is uid 1000; if your
+    # host uid differs, the mounts would be unreadable and uvicorn
+    # would fail with PermissionError. These defaults are a no-op if
+    # UID/GID aren't exported. Dev-only concern — production uses the
+    # image's `appuser` with no bind mounts.
+    user: "${UID:-1000}:${GID:-1000}"
     environment:
       # Inside the container, the database host is the service name
       # ("postgres"), not "localhost". Docker's internal DNS resolves

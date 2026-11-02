@@ -1,13 +1,18 @@
 # School Register — Docker build context exclusions.
 #
 # Anything matched here is not sent to the Docker daemon. The build
-# only needs `pyproject.toml`, `app/`, `migrations/`, and `scripts/`.
-# Everything else is dead weight.
+# only needs `pyproject.toml`, `README.md`, `app/`, `migrations/`, and
+# `scripts/`. Everything else is dead weight.
+#
+# README.md is NOT excluded: pyproject.toml declares
+# `readme = "README.md"`, and setuptools fails the build if it's
+# missing from the context.
 
 .git
 .gitignore
 .venv
 venv
+env
 __pycache__
 *.py[cod]
 *.egg-info
@@ -21,8 +26,17 @@ tests
 .env
 .env.*
 !.env.example
-README.md
 Makefile
 docker-compose.yml
 Dockerfile
 .dockerignore
+
+# Local artifacts — none of these belong in an image.
+*.db
+*.sqlite
+*.sqlite3
+*.log
+data/
+dist/
+build/
+*.whl
