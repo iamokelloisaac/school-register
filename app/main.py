@@ -47,6 +47,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
+
 from fastapi import FastAPI
 
 from app.api.v1.api import api_router
@@ -55,7 +56,6 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.db.pool import close_pool, open_pool
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
