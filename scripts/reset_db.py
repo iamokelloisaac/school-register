@@ -13,7 +13,7 @@ produce — no partial state, no leftover data.
 
 ## Why this exists
 
-During development you'll often want a clean slate: testing seed
+During development, you'll often want a clean slate: testing seed
 changes, verifying migrations from scratch, or clearing out data that
 piled up from debugging. Doing it by hand is a sequence of `DROP TABLE`
 statements plus a loop over `migrations/*.sql`. This script is that
